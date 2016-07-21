@@ -239,15 +239,29 @@ liushou = (
 	"玄武",
 )
 
+class Yao(object):
+	"""爻。 可能包含：
+	.name: 名字，如初九，六三等;
+	.yinyang: 阴，阳，老阴，单等；
+	.gan: 所属天干;
+	.zhi: 地支;
+	.wuxing: 五行属性;
+	.liuqin: 六亲;
+	.liushou: 六兽;
+	"""
+	def __init__(self):
+		super(Yao, self).__init__()
+
+
 class Gua(object):
 	"""某卦，及其装卦。
 	.name: 卦名，如：复
 	.gong: 所属何宫，如复属 坤 宫
-	.yao[0-5]: list of named tuple. 0-5: 初至上爻
+	.yao[0-5]: list of Yao. 0-5: 初至上爻
 	.yao[?].name： 爻名，如初六、九二等
 	.yao[?].gan .zhi .wuxing：爻的干支、五行
 	.yao[?].liuqin：六亲，如官鬼、兄弟
-	.gongshi：所属宫的几世卦，如上世、三世、游魂等
+	.shigong：所属宫的几世卦，如上世、三世、游魂等
 	.shi: 世爻的名字，如六三
 	.ying: 应爻的名字"""
 
@@ -279,25 +293,23 @@ class Gua(object):
 	
 	def zhuang_yao(self):
 		"""定各爻，及其属性。六爻为列表，0-5：初-上。"""
-		y = namedtuple("y", "name, gan, zhi, wuxing, liuqin")
-
+#		y = Yao()
 		self.yao = []
-
 		yinyao_names = ("初六", "六二", "六三", "六四", "六五", "上六")
 		yangyao_names = ("初九", "九二", "九三", "九四", "九五", "上九")
+
 		for pos in range(6):
-
+			y = Yao()
 			if 1 << pos & self.num == 0:	# 阴爻
-				name = yinyao_names[pos]
+				y.name = yinyao_names[pos]
 			else:							# 阳爻
-				name = yangyao_names[pos]
+				y.name = yangyao_names[pos]
 
-			gan, zhi = self.najia(pos)			# 納甲
-			wuxing = zhi2wuxing[zhi]
-			liuqin = self.find_liuqin(wuxing)
+			y.gan, y.zhi = self.najia(pos)			# 納甲
+			y.wuxing = zhi2wuxing[y.zhi]
+			y.liuqin = self.find_liuqin(y.wuxing)
 
-			yc = y(name, gan, zhi, wuxing, liuqin)
-			self.yao.append(yc)
+			self.yao.append(y)
 
 	def najia(self, pos):
 		"""各爻納甲"""
@@ -358,7 +370,7 @@ class Gua(object):
 			self.lname = gong2xiang[self.waigua] + gong2xiang[self.neigua] + self.name
 
 	def __str__(self):
-		s = self.name + ": " +self.lname + ", " + self.gong + "宫, " + self.shigong + "卦\n"
+		s = self.name + ": " + self.lname + ", " + self.gong + "宫, " + self.shigong + "卦\n"
 		for yao in reversed(self.yao):
 			yao_s = ". ".join([yao.name, yao.gan + yao.zhi + yao.wuxing, yao.liuqin])
 			if yao.name == self.shi:
@@ -375,9 +387,9 @@ class ZhanGua(object):
 	whom: 所占何人，如："同事"，
 	what: 所占何事，如："婚姻"，
 	gender: 问卜者性别，"男" or "女",
-	yao_gua: 摇卦结果, 如("单", "坼", "重", "交", "单", "坼"),
+	qi_gua: 摇卦结果, 如("单", "坼", "重", "交", "单", "坼"),
 	"""
-	def __init__(self, date, whom, what, gender, yao_gua):
+	def __init__(self, date, whom, what, gender, qi_gua):
 		d = namedtuple("d", "year, month, day")
 		self.date = d(date[0], date[1], date[2])
 		self.whom = whom
@@ -388,20 +400,20 @@ class ZhanGua(object):
 		zhigua_num = 0b000000
 		self.bianyao = []
 		for x in range(6):
-			if yao_gua[x] == "单":
+			if qi_gua[x] == "单":
 				yao = 1 << x
 				bengua_num = bengua_num | yao
 				zhigua_num = zhigua_num | yao
-			elif yao_gua[x] == "坼":
+			elif qi_gua[x] == "坼":
 				yao = 0 << x 				# just for clearness
 				bengua_num = bengua_num | yao
 				zhigua_num = zhigua_num | yao
-			elif yao_gua[x] == "重":
+			elif qi_gua[x] == "重":
 				yao = 1 << x
 				self.bianyao.append(x)
 				bengua_num = bengua_num | yao
 				zhigua_num = zhigua_num | yao ^ (1 << x)
-			elif yao_gua[x] == "交":
+			elif qi_gua[x] == "交":
 				yao = 0 << x
 				self.bianyao.append(x)				
 				bengua_num = bengua_num | yao
@@ -411,24 +423,26 @@ class ZhanGua(object):
 		self.bengua = Gua(bengua_num)
 		self.zhigua = Gua(zhigua_num)
 		self.an_bianqin()
-	#	self.an_liushou()
+		self.an_liushou()
 
 	def an_bianqin(self):
 		"""重定变爻六亲"""
-		self.bianqin = []
 		for x in self.bianyao:
+			self.zhigua.yao[x].liuqin = self.bengua.find_liuqin(self.zhigua.yao[x].wuxing)
+			"""
 			if gong2wuxing[self.bengua.gong] == self.zhigua.yao[x].wuxing:
-				self.bianqin.append("兄弟")
+				self.zhigua.yao[x].liuqin = "兄弟"
 			elif wuxing_sheng[gong2wuxing[self.bengua.gong]] == self.zhigua.yao[x].wuxing:
-				self.bianqin.append("子孙")
+				self.zhigua.yao[x].liuqin = "子孙"
 			elif wuxing_shengwo[gong2wuxing[self.bengua.gong]] == self.zhigua.yao[x].wuxing:
-				self.bianqin.append("父母")
+				self.zhigua.yao[x].liuqin = "父母"
 			elif wuxing_ke[gong2wuxing[self.bengua.gong]] == self.zhigua.yao[x].wuxing:
-				self.bianqin.append("妻财")
+				self.zhigua.yao[x].liuqin = "妻财"
 			elif wuxing_kewo[gong2wuxing[self.bengua.gong]] == self.zhigua.yao[x].wuxing:
-				self.bianqin.append("官鬼")
+				self.zhigua.yao[x].liuqin = "官鬼"
 			else:
 				raise ValueError
+			"""
 	def an_liushou(self):
 		if self.date.day[0] == "甲" or self.date.day[0] == "乙":
 			liushou_start = 0
@@ -447,8 +461,22 @@ class ZhanGua(object):
 
 		for x in range(6):
 			self.bengua.yao[x].liushou = liushou[(liushou_start + x) % 6]
+	
 	def __str__(self):
-		return(str(self.bengua) + str(self.zhigua) + str(self.bianyao) + str(self.bianqin))
+		s = "问卜人，{}，于 {}年{}月{}日 问 {} {} 事，\n".format(self.gender, self.date.year, self.date.month, self.date.day, self.whom, self.what)
+		s = s + "得 {} 之 {} 卦。\n".format(self.bengua.lname, self.zhigua.lname)
+
+		for x in reversed(range(6)):
+			yao_s = ". ".join([self.bengua.yao[x].name, self.bengua.yao[x].liushou, self.bengua.yao[x].zhi + self.bengua.yao[x].wuxing, self.bengua.yao[x].liuqin])
+			if x in self.bianyao:
+				yao_s = yao_s + " 化为 " + ". ".join([self.zhigua.yao[x].zhi + self.zhigua.yao[x].wuxing, self.zhigua.yao[x].liuqin])
+			if x == self.bengua.shinum:
+				yao_s = yao_s + ", " + "世"
+			elif x == self.bengua.yingnum:
+				yao_s = yao_s + ", " + "应"
+			s = s + yao_s + "\n"
+
+		return(s)
 
 def main():
 	"""	for n in range(64):
@@ -456,6 +484,8 @@ def main():
 		print(g)
 	"""
 	g = ZhanGua(("甲子", "乙丑", "丙寅"), "同事", "职业", "男", "单坼交重单坼")
+	print(g.bengua)
+	print(g.zhigua)
 	print(g)
 
 if __name__ == '__main__':
