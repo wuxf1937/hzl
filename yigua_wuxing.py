@@ -262,8 +262,9 @@ class Gua(object):
 	.yao[?].gan .zhi .wuxing：爻的干支、五行
 	.yao[?].liuqin：六亲，如官鬼、兄弟
 	.shigong：所属宫的几世卦，如上世、三世、游魂等
-	.shi: 世爻的名字，如六三
-	.ying: 应爻的名字"""
+	.shi: 世爻的位置，0-5
+	.ying: 应爻的位置
+	"""
 
 	def __init__(self, num = 0b111111):
 		"""从数字确定挂名"""
@@ -353,10 +354,8 @@ class Gua(object):
 
 	def find_shiying(self):
 		"""定世应"""
-		self.shinum = shigong2shiyao[self.shigong]
-		self.shi = self.yao[self.shinum].name
-		self.yingnum = (self.shinum + 3) % 6
-		self.ying = self.yao[self.yingnum].name
+		self.shi = shigong2shiyao[self.shigong]
+		self.ying = (self.shi + 3) % 6
 
 	def find_lname(self):
 		for gong in gong_gua:
@@ -371,11 +370,11 @@ class Gua(object):
 
 	def __str__(self):
 		s = self.name + ": " + self.lname + ", " + self.gong + "宫, " + self.shigong + "卦\n"
-		for yao in reversed(self.yao):
-			yao_s = ". ".join([yao.name, yao.gan + yao.zhi + yao.wuxing, yao.liuqin])
-			if yao.name == self.shi:
+		for x in reversed(range(6)):
+			yao_s = ". ".join([self.yao[x].name, self.yao[x].gan + self.yao[x].zhi + self.yao[x].wuxing, self.yao[x].liuqin])
+			if x == self.shi:
 				yao_s = yao_s + ", " + "世"
-			elif yao.name == self.ying:
+			elif x == self.ying:
 				yao_s = yao_s + ", " + "应"
 			s = s + yao_s + "\n"
 
@@ -470,20 +469,20 @@ class ZhanGua(object):
 			yao_s = ". ".join([self.bengua.yao[x].name, self.bengua.yao[x].liushou, self.bengua.yao[x].zhi + self.bengua.yao[x].wuxing, self.bengua.yao[x].liuqin])
 			if x in self.bianyao:
 				yao_s = yao_s + " 化为 " + ". ".join([self.zhigua.yao[x].zhi + self.zhigua.yao[x].wuxing, self.zhigua.yao[x].liuqin])
-			if x == self.bengua.shinum:
+			if x == self.bengua.shi:
 				yao_s = yao_s + ", " + "世"
-			elif x == self.bengua.yingnum:
+			elif x == self.bengua.ying:
 				yao_s = yao_s + ", " + "应"
 			s = s + yao_s + "\n"
 
 		return(s)
 
 def main():
-	"""	for n in range(64):
+	"""for n in range(64):
 		g = Gua(n)
 		print(g)
 	"""
-	g = ZhanGua(("甲子", "乙丑", "丙寅"), "同事", "职业", "男", "单坼交重单坼")
+	g = ZhanGua(("甲子", "乙丑", "丙寅"), "同事", "职业", "男", "坼坼交重单坼")
 	print(g.bengua)
 	print(g.zhigua)
 	print(g)
